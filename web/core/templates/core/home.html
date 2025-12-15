@@ -1,0 +1,125 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="text-center py-5">
+    <h1 class="display-4 mb-4">🔊 Voice Access Control</h1>
+    <p class="lead mb-5">Speak the magic phrase to unlock</p>
+
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card p-4">
+                <h3>Say: "<strong>open the door</strong>"</h3>
+                <button id="recordBtn" class="btn btn-success btn-lg btn-record mt-4">
+                    🎤 Hold to Speak
+                </button>
+                <p id="status" class="mt-3 fw-bold text-muted">Click and hold, then speak clearly</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-5">
+        <a href="{% url 'admin_login' %}" class="btn btn-outline-primary">Admin Login</a>
+    </div>
+
+    <div class="mt-5">
+        <h4>Recent Access Logs</h4>
+        <div id="logBox" class="log-box"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let mediaRecorder;
+let audioChunks = [];
+let isRecording = false;
+
+const recordBtn = document.getElementById('recordBtn');
+const status = document.getElementById('status');
+const logBox = document.getElementById('logBox');
+
+async function startRecording() {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+
+        mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+        mediaRecorder.onstop = sendAudio;
+
+        mediaRecorder.start();
+        isRecording = true;
+        recordBtn.classList.add('btn-danger');
+        recordBtn.textContent = '🔴 Recording... Release to Send';
+        status.textContent = 'Recording... Speak now!';
+        status.className = 'mt-3 fw-bold text-danger';
+    } catch (err) {
+        alert('Microphone access denied or not available');
+    }
+}
+
+function stopRecording() {
+    if (mediaRecorder && isRecording) {
+        mediaRecorder.stop();
+        mediaRecorder.stream.getTracks().forEach(track => track.stop());
+        isRecording = false;
+        recordBtn.classList.remove('btn-danger');
+        recordBtn.classList.add('btn-secondary');
+        recordBtn.textContent = '⏳ Processing...';
+        status.textContent = 'Processing audio...';
+    }
+}
+
+async function sendAudio() {
+    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+    const reader = new FileReader();
+    reader.onload = async () => {
+        const base64audio = reader.result;
+
+        const response = await fetch('/unlock/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ audio: base64audio })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            status.textContent = `✅ Access Granted! Welcome, ${result.user}`;
+            status.className = 'mt-3 fw-bold text-success display-6';
+            recordBtn.classList.remove('btn-secondary');
+            recordBtn.classList.add('btn-success');
+            recordBtn.textContent = '🎉 Unlocked!';
+        } else {
+            status.textContent = `❌ Access Denied: ${result.error || 'Voice not recognized'}`;
+            status.className = 'mt-3 fw-bold text-danger';
+            recordBtn.classList.remove('btn-secondary');
+            recordBtn.classList.add('btn-success');
+            recordBtn.textContent = '🎤 Try Again';
+        }
+
+        loadLogs();
+    };
+    reader.readAsDataURL(audioBlob);
+}
+
+recordBtn.addEventListener('mousedown', startRecording);
+recordBtn.addEventListener('touchstart', startRecording);
+recordBtn.addEventListener('mouseup', stopRecording);
+recordBtn.addEventListener('touchend', stopRecording);
+recordBtn.addEventListener('mouseleave', stopRecording);
+
+function loadLogs() {
+    fetch('/logs/')
+        .then(res => res.json())
+        .then(data => {
+            logBox.innerHTML = data.logs.reverse().join('<br>');
+            logBox.scrollTop = logBox.scrollHeight;
+        });
+}
+
+// Load logs on page load and every 5 seconds
+loadLogs();
+setInterval(loadLogs, 5000);
+</script>
+{% endblock %}

@@ -5,14 +5,14 @@ import librosa
 from datetime import datetime
 from django.conf import settings
 
-REQUIRED_PHRASE = "open the door"
-ADMIN_PASSWORD = "admin123"  # CHANGE THIS!
+REQUIRED_PHRASE = "open the door"  # Fixed phrase for all
+ADMIN_PASSWORD = "admin123"  # CHANGE THIS IN PRODUCTION!
 
 def load_enrolled():
     if os.path.exists(settings.ENROLLED_FILE):
         with open(settings.ENROLLED_FILE, 'rb') as f:
             return pickle.load(f)
-    return {}
+    return {}  # username -> {'details': {'full_name': str, 'email': str, 'role': str}, 'features': list of MFCC}
 
 def save_enrolled(enrolled):
     os.makedirs(settings.DATA_DIR, exist_ok=True)
@@ -27,6 +27,16 @@ def log_access(username, success):
     with open(settings.LOG_FILE, 'a') as f:
         f.write(f"{timestamp} | User: {user} | Access: {status}\n")
 
+def get_user_entry_count(username):
+    if os.path.exists(settings.LOG_FILE):
+        count = 0
+        with open(settings.LOG_FILE, 'r') as f:
+            for line in f:
+                if f"User: {username} | Access: GRANTED" in line:
+                    count += 1
+        return count
+    return 0
+
 def extract_features(wav_bytes):
     try:
         audio_array = np.frombuffer(wav_bytes, np.int16).astype(np.float32) / 32768.0
@@ -37,7 +47,7 @@ def extract_features(wav_bytes):
 
 def voice_match(stored_features, new_feature, threshold=0.75):
     if new_feature is None:
-        return False, None
+        return False, 0
     similarities = []
     for stored in stored_features:
         dot = np.dot(stored, new_feature)
