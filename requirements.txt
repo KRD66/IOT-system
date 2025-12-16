@@ -6,4 +6,3 @@ django==5.1.6
 resemblyzer
 webrtcvad
 gunicorn
-https://github.com/jiaaro/pyaudio/releases/download/v0.2.14/PyAudio-0.2.14-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
