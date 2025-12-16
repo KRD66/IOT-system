@@ -1,25 +1,43 @@
 {% extends 'core/base.html' %}
 
 {% block content %}
-<div class="row justify-content-center py-5">
-    <div class="col-md-5">
-        <div class="card p-4">
-            <h2 class="text-center mb-4">🔐 Admin Login</h2>
-            {% if error %}
-                <div class="alert alert-danger">{{ error }}</div>
-            {% endif %}
-            <form method="post">
-                {% csrf_token %}
-                <div class="mb-3">
-                    <label class="form-label">Password</label>
-                    <input type="password" name="password" class="form-control" required>
+<section class="full-screen-bg d-flex align-items-center min-vh-100" style="background: linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.9)), url('https://thumbs.dreamstime.com/b/glowing-blue-abstract-waves-geometric-lines-dark-background-futuristic-digital-art-technology-abstract-high-tech-blue-digital-410631908.jpg') center/cover no-repeat fixed;">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-5 col-sm-8">
+                <div class="card bg-white bg-opacity-10 p-5 border-0 shadow-lg rounded-4" style="backdrop-filter: blur(20px); border: 1px solid rgba(0, 212, 255, 0.3);">
+                    <h2 class="text-center mb-5 fw-bold text-white fs-1">🔐 Admin Access</h2>
+                    {% if error %}
+                        <div class="alert alert-danger bg-danger bg-opacity-30 border-0 text-white text-center mb-4 rounded-pill">{{ error }}</div>
+                    {% endif %}
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="mb-4">
+                            <label class="form-label fw-bold text-white opacity-90">Username</label>
+                            <input type="text" name="username" class="form-control form-control-lg bg-transparent text-white" style="border: 2px solid #00d4ff; box-shadow: 0 0 15px rgba(0,212,255,0.4);" required placeholder="Enter username (admin)">
+                        </div>
+                        <div class="mb-4">
+                            <label class="form-label fw-bold text-white opacity-90">Password</label>
+                            <input type="password" name="password" class="form-control form-control-lg bg-transparent text-white" style="border: 2px solid #00d4ff; box-shadow: 0 0 15px rgba(0,212,255,0.4);" required placeholder="Enter password">
+                        </div>
+                        <button type="submit" class="btn btn-lg w-100 fw-bold text-white" style="background: rgba(0,212,255,0.2); border: 2px solid #00d4ff; box-shadow: 0 0 25px rgba(0,212,255,0.6); transition: all 0.3s;">
+                            Login →
+                        </button>
+                    </form>
+                    <div class="text-center mt-4">
+                        <a href="{% url 'home' %}" class="text-white fw-light small opacity-75">← Back to Home</a>
+                    </div>
                 </div>
-                <button type="submit" class="btn btn-primary w-100">Login</button>
-            </form>
-            <div class="text-center mt-3">
-                <a href="{% url 'home' %}">← Back to Unlock</a>
             </div>
         </div>
     </div>
-</div>
+</section>
+
+<style>
+    .btn:hover {
+        background: #00d4ff !important;
+        color: #000 !important;
+        box-shadow: 0 0 40px rgba(0,212,255,0.8);
+    }
+</style>
 {% endblock %}

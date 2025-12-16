@@ -1,125 +1,60 @@
 {% extends 'core/base.html' %}
 
 {% block content %}
-<div class="text-center py-5">
-    <h1 class="display-4 mb-4">🔊 Voice Access Control</h1>
-    <p class="lead mb-5">Speak the magic phrase to unlock</p>
+<!-- Hero Landing Section - Ultra Sleek Dark Mode -->
+<section class="text-center text-white min-vh-100 d-flex align-items-center position-relative overflow-hidden" style="background: linear-gradient(rgba(0,0,0,0.75), rgba(0,0,0,0.85)), url('https://img.freepik.com/free-photo/glowing-futuristic-abstraction-blue-wave-pattern-flows-generated-by-ai_188544-16964.jpg?semt=ais_hybrid') center/cover no-repeat;">
+    <div class="container position-relative z-index-2">
+        <h1 class="display-2 fw-light mb-4 opacity-90">🔐 VoiceGuard IoT</h1>
+        <h2 class="display-6 fw-light mb-5 opacity-80">Biometric Voice Access Control</h2>
+        <p class="lead fs-4 mb-5 fw-light opacity-75">
+            Unlock the future with your voice. AI-powered voiceprint recognition for ultimate security.
+        </p>
+        <p class="fs-5 mb-5 fw-light opacity-70">
+            Speak. Verify. Enter.
+        </p>
 
-    <div class="row justify-content-center">
-        <div class="col-md-6">
-            <div class="card p-4">
-                <h3>Say: "<strong>open the door</strong>"</h3>
-                <button id="recordBtn" class="btn btn-success btn-lg btn-record mt-4">
-                    🎤 Hold to Speak
-                </button>
-                <p id="status" class="mt-3 fw-bold text-muted">Click and hold, then speak clearly</p>
+        <div class="mt-5">
+            <a href="{% url 'admin_login' %}" class="btn btn-outline-light btn-lg px-5 py-3 fw-medium border-2 neon-btn">
+                Admin Login →
+            </a>
+        </div>
+    </div>
+</section>
+
+<!-- Subtle Features Section -->
+<section class="py-5 bg-black text-white">
+    <div class="container">
+        <div class="row g-5 text-center opacity-80">
+            <div class="col-md-4">
+                <div class="fs-1 mb-3">🎤</div>
+                <h5 class="fw-light">Voice Biometrics</h5>
+                <p class="small">Unique voiceprint + phrase matching</p>
+            </div>
+            <div class="col-md-4">
+                <div class="fs-1 mb-3">🚪</div>
+                <h5 class="fw-light">IoT Ready</h5>
+                <p class="small">Integrates with smart locks & doors</p>
+            </div>
+            <div class="col-md-4">
+                <div class="fs-1 mb-3">🛡️</div>
+                <h5 class="fw-light">Secure Admin</h5>
+                <p class="small">Full control over users & logs</p>
             </div>
         </div>
     </div>
+</section>
 
-    <div class="mt-5">
-        <a href="{% url 'admin_login' %}" class="btn btn-outline-primary">Admin Login</a>
-    </div>
-
-    <div class="mt-5">
-        <h4>Recent Access Logs</h4>
-        <div id="logBox" class="log-box"></div>
-    </div>
-</div>
-{% endblock %}
-
-{% block scripts %}
-<script>
-let mediaRecorder;
-let audioChunks = [];
-let isRecording = false;
-
-const recordBtn = document.getElementById('recordBtn');
-const status = document.getElementById('status');
-const logBox = document.getElementById('logBox');
-
-async function startRecording() {
-    try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        mediaRecorder = new MediaRecorder(stream);
-        audioChunks = [];
-
-        mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-        mediaRecorder.onstop = sendAudio;
-
-        mediaRecorder.start();
-        isRecording = true;
-        recordBtn.classList.add('btn-danger');
-        recordBtn.textContent = '🔴 Recording... Release to Send';
-        status.textContent = 'Recording... Speak now!';
-        status.className = 'mt-3 fw-bold text-danger';
-    } catch (err) {
-        alert('Microphone access denied or not available');
+<style>
+    .neon-btn {
+        transition: all 0.4s ease;
+        box-shadow: 0 0 15px rgba(0, 212, 255, 0.3);
     }
-}
-
-function stopRecording() {
-    if (mediaRecorder && isRecording) {
-        mediaRecorder.stop();
-        mediaRecorder.stream.getTracks().forEach(track => track.stop());
-        isRecording = false;
-        recordBtn.classList.remove('btn-danger');
-        recordBtn.classList.add('btn-secondary');
-        recordBtn.textContent = '⏳ Processing...';
-        status.textContent = 'Processing audio...';
+    .neon-btn:hover {
+        background: rgba(0, 212, 255, 0.1);
+        box-shadow: 0 0 30px rgba(0, 212, 255, 0.6);
+        transform: translateY(-3px);
+        color: white !important;
     }
-}
-
-async function sendAudio() {
-    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-    const reader = new FileReader();
-    reader.onload = async () => {
-        const base64audio = reader.result;
-
-        const response = await fetch('/unlock/', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ audio: base64audio })
-        });
-
-        const result = await response.json();
-
-        if (result.success) {
-            status.textContent = `✅ Access Granted! Welcome, ${result.user}`;
-            status.className = 'mt-3 fw-bold text-success display-6';
-            recordBtn.classList.remove('btn-secondary');
-            recordBtn.classList.add('btn-success');
-            recordBtn.textContent = '🎉 Unlocked!';
-        } else {
-            status.textContent = `❌ Access Denied: ${result.error || 'Voice not recognized'}`;
-            status.className = 'mt-3 fw-bold text-danger';
-            recordBtn.classList.remove('btn-secondary');
-            recordBtn.classList.add('btn-success');
-            recordBtn.textContent = '🎤 Try Again';
-        }
-
-        loadLogs();
-    };
-    reader.readAsDataURL(audioBlob);
-}
-
-recordBtn.addEventListener('mousedown', startRecording);
-recordBtn.addEventListener('touchstart', startRecording);
-recordBtn.addEventListener('mouseup', stopRecording);
-recordBtn.addEventListener('touchend', stopRecording);
-recordBtn.addEventListener('mouseleave', stopRecording);
-
-function loadLogs() {
-    fetch('/logs/')
-        .then(res => res.json())
-        .then(data => {
-            logBox.innerHTML = data.logs.reverse().join('<br>');
-            logBox.scrollTop = logBox.scrollHeight;
-        });
-}
-
-// Load logs on page load and every 5 seconds
-loadLogs();
-setInterval(loadLogs, 5000);
-</script>
+    .z-index-2 { z-index: 2; }
+</style>
 {% endblock %}

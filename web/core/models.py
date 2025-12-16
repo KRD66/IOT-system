@@ -37,25 +37,36 @@ def get_user_entry_count(username):
         return count
     return 0
 
+from resemblyzer import VoiceEncoder, preprocess_wav
+from pathlib import Path
+
+encoder = VoiceEncoder()
+
 def extract_features(wav_bytes):
     try:
-        audio_array = np.frombuffer(wav_bytes, np.int16).astype(np.float32) / 32768.0
-        mfcc = librosa.feature.mfcc(y=audio_array, sr=16000, n_mfcc=13)
-        return np.mean(mfcc, axis=1)
-    except:
+        # Convert bytes to wav file temporarily or use numpy
+        from io import BytesIO
+        import wave
+        import numpy as np
+        
+        # Load wav from bytes
+        with BytesIO(wav_bytes) as wav_io:
+            with wave.open(wav_io, 'rb') as wav_file:
+                frames = wav_file.readframes(wav_file.getnframes())
+                audio = np.frombuffer(frames, dtype=np.int16).astype(np.float32) / 32768.0
+        
+        # Preprocess and get embedding
+        preprocessed_wav = preprocess_wav(audio)
+        embedding = encoder.embed_utterance(preprocessed_wav)
+        return embedding
+    except Exception as e:
+        print("Embedding error:", e)
         return None
 
 def voice_match(stored_features, new_feature, threshold=0.75):
     if new_feature is None:
         return False, 0
-    similarities = []
-    for stored in stored_features:
-        dot = np.dot(stored, new_feature)
-        norm = np.linalg.norm(stored) * np.linalg.norm(new_feature)
-        sim = dot / norm if norm != 0 else 0
-        similarities.append(sim)
-    if similarities:
-        max_sim = max(similarities)
-        if max_sim > threshold:
-            return True, max_sim
-    return False, 0
+    similarities = [np.dot(stored, new_feature) for stored in stored_features]  # Cosine similarity (embeddings are normalized)
+    max_sim = max(similarities) if similarities else 0
+    return max_sim > threshold, max_sim
+

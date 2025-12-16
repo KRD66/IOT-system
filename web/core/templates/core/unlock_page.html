@@ -1,0 +1,176 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<section class="full-screen-bg d-flex align-items-center text-white min-vh-100" style="background: linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.9)), url('https://thumbs.dreamstime.com/b/futuristic-digital-door-lock-biometric-scan-glowing-blue-neon-light-access-control-system-high-tech-security-concept-376222419.jpg') center/cover no-repeat fixed;">
+    <div class="container">
+        <div class="text-center py-5">
+            <h1 class="display-3 fw-bold mb-4 text-info">🚪 Voice Unlock</h1>
+            <p class="lead fs-3 mb-5 opacity-80">Speak the magic phrase to gain access</p>
+
+            <div class="row justify-content-center">
+                <div class="col-lg-6 col-md-8">
+                    <div class="card bg-white bg-opacity-10 p-5 shadow-lg rounded-4" style="backdrop-filter: blur(15px); border: 1px solid rgba(0,212,255,0.3);">
+                        <h3 class="mb-4 text-cyan fw-bold">Say clearly: "<strong>open the door</strong>" 🎙️</h3>
+                        
+                        <button id="recordBtn" class="btn btn-success btn-lg w-100 shadow-lg neon-btn mb-4">
+                            🎤 Hold to Speak & Unlock
+                        </button>
+                        
+                        <p id="status" class="mt-3 fw-bold fs-5 text-muted">Press and hold → speak → release</p>
+
+                        <div id="successInfo" class="mt-5 text-center d-none success-anim">
+                            <h2 class="text-success fw-bold display-5 mb-4">✅ Access Granted!</h2>
+                            <div class="bg-black bg-opacity-50 p-4 rounded-4">
+                                <h4 id="welcomeMsg" class="text-white fw-bold"></h4>
+                                <p id="detailsMsg" class="fs-5 text-white opacity-90"></p>
+                                <p id="entriesMsg" class="fs-3 text-info fw-bold mt-3"></p>
+                            </div>
+                        </div>
+
+                        <div id="errorInfo" class="mt-4 text-center d-none">
+                            <p class="text-danger fw-bold fs-4" id="errorMsg"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-5">
+                <a href="{% url 'home' %}" class="btn btn-outline-light btn-lg px-5">← Back to Home</a>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let mediaRecorder;
+let audioChunks = [];
+let isRecording = false;
+
+const recordBtn = document.getElementById('recordBtn');
+const status = document.getElementById('status');
+const successInfo = document.getElementById('successInfo');
+const errorInfo = document.getElementById('errorInfo');
+const errorMsg = document.getElementById('errorMsg');
+
+async function startRecording() {
+    successInfo.classList.add('d-none');
+    errorInfo.classList.add('d-none');
+
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream);
+        audioChunks = [];
+
+        mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+        mediaRecorder.onstop = sendAudio;
+
+        mediaRecorder.start();
+        isRecording = true;
+
+        recordBtn.classList.remove('btn-success');
+        recordBtn.classList.add('btn-danger');
+        recordBtn.textContent = '🔴 Recording... Release to Send';
+        status.textContent = 'Speak the phrase now!';
+        status.className = 'mt-3 fw-bold fs-5 text-danger';
+    } catch (err) {
+        status.textContent = 'Microphone access denied';
+        status.className = 'mt-3 fw-bold fs-5 text-danger';
+        alert('Please allow microphone access to use voice unlock');
+    }
+}
+
+function stopRecording() {
+    if (mediaRecorder && isRecording) {
+        mediaRecorder.stop();
+        mediaRecorder.stream.getTracks().forEach(track => track.stop());
+        isRecording = false;
+
+        recordBtn.classList.remove('btn-danger');
+        recordBtn.classList.add('btn-secondary');
+        recordBtn.textContent = '⏳ Processing...';
+        status.textContent = 'Verifying your voice...';
+        status.className = 'mt-3 fw-bold fs-5 text-info';
+    }
+}
+
+async function sendAudio() {
+    if (audioChunks.length === 0) {
+        status.textContent = 'No audio recorded. Try again.';
+        resetButton();
+        return;
+    }
+
+    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+    const reader = new FileReader();
+    reader.onload = async () => {
+        const base64audio = reader.result;
+
+        try {
+            const response = await fetch('/unlock-api/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ audio: base64audio })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                status.textContent = '✅ Access Granted!';
+                status.className = 'mt-3 fw-bold fs-5 text-success';
+
+                document.getElementById('welcomeMsg').innerText = `Welcome, ${result.details.full_name}! (@${result.user})`;
+                document.getElementById('detailsMsg').innerText = `${result.details.role} • ${result.details.email}`;
+                document.getElementById('entriesMsg').innerText = `Total Entries: ${result.entry_count}`;
+
+                successInfo.classList.remove('d-none');
+            } else {
+                status.textContent = `❌ ${result.error || 'Voice not recognized'}`;
+                status.className = 'mt-3 fw-bold fs-5 text-danger';
+                errorMsg.textContent = result.error || 'Voice not recognized';
+                errorInfo.classList.remove('d-none');
+            }
+        } catch (err) {
+            status.textContent = 'Network error. Try again.';
+            status.className = 'mt-3 fw-bold fs-5 text-danger';
+        }
+
+        resetButton();
+    };
+    reader.readAsDataURL(audioBlob);
+}
+
+function resetButton() {
+    recordBtn.classList.remove('btn-secondary', 'btn-danger');
+    recordBtn.classList.add('btn-success');
+    recordBtn.textContent = '🎤 Hold to Speak & Unlock';
+}
+
+// Mouse and touch events for better mobile support
+recordBtn.addEventListener('mousedown', startRecording);
+recordBtn.addEventListener('touchstart', startRecording);
+recordBtn.addEventListener('mouseup', stopRecording);
+recordBtn.addEventListener('touchend', stopRecording);
+recordBtn.addEventListener('mouseleave', stopRecording);  // In case mouse leaves button
+</script>
+
+<style>
+    .neon-btn {
+        transition: all 0.3s;
+        box-shadow: 0 0 20px rgba(0,212,255,0.5);
+    }
+    .neon-btn:hover {
+        box-shadow: 0 0 40px rgba(0,212,255,0.8);
+        transform: scale(1.02);
+    }
+    .success-anim {
+        animation: fadeInUp 1s ease-out;
+    }
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(30px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .text-cyan { color: #00ffff; }
+</style>
+{% endblock %}
